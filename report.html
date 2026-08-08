@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<style>
+  :root{
+    --red:#e2231a;
+    --red-soft:#ff4b3e;
+    --bg:#050505;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; background:var(--bg); color:#fff; }
+  body{
+    font-family:'Arial Black','Arial Narrow',Impact,'Hiragino Kaku Gothic Pro',sans-serif;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 50% -10%, #2a0605 0%, transparent 55%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 2px, transparent 2px 4px),
+      var(--bg);
+    padding:18px 14px 40px;
+  }
+  .wrap{ max-width:820px; margin:0 auto; }
+
+  .logo{ text-align:center; margin:6px 0 4px; }
+  .logo .row{ display:flex; align-items:center; justify-content:center; gap:10px; }
+  .logo h1{
+    margin:0; font-size:clamp(30px,10vw,54px); line-height:.9;
+    font-style:italic; letter-spacing:-1px;
+    background:linear-gradient(#fff 0%,#cfcfd6 42%,#8a8a90 52%,#fff 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 3px 0 #6b0d09) drop-shadow(0 5px 6px rgba(226,35,26,.55));
+  }
+  .bolt{ width:clamp(24px,8vw,44px); height:auto; filter:drop-shadow(0 0 10px var(--red)); }
+  .bolt path{ fill:var(--red); stroke:#fff; stroke-width:6; }
+  .sub{
+    margin:6px 0 0; text-align:center; font-size:clamp(11px,3.4vw,14px);
+    letter-spacing:.32em; color:var(--red-soft); font-style:italic;
+    text-shadow:0 0 12px rgba(226,35,26,.7);
+  }
+  .rule{ height:3px; margin:14px 0 18px;
+    background:linear-gradient(90deg,transparent,var(--red) 20%,#fff 50%,var(--red) 80%,transparent);
+    box-shadow:0 0 14px var(--red); }
+
+  .card{ background:linear-gradient(#0b0b0b,#050505); border:2px solid #2a2a2a;
+    border-radius:14px; padding:14px 14px 12px; margin-bottom:14px; }
+  .head{ font-style:italic; letter-spacing:.12em; color:var(--red-soft);
+    font-size:16px; margin-bottom:8px; text-shadow:0 0 10px rgba(226,35,26,.6); }
+  .head span{ color:#6f6f76; font-size:11px; letter-spacing:.2em; }
+
+  .body{
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+    font-weight:400; font-style:normal; line-height:1.75; font-size:14px;
+    color:#d7d7db; letter-spacing:.01em; white-space:pre-wrap;
+  }
+  .note{ margin-top:10px; font-size:11px; color:#65656b; font-style:italic;
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; }
+
+  /* ---- 月タブ ---- */
+  .months{ display:flex; gap:8px; overflow-x:auto; margin:10px 0 14px; padding-bottom:4px; }
+  .months button{
+    flex:0 0 auto; padding:8px 15px; white-space:nowrap;
+    font-family:inherit; font-style:italic; font-size:14px; letter-spacing:.08em;
+    color:#bdbdc4; background:#0c0c0c; border:2px solid #333; border-radius:8px;
+    cursor:pointer; transition:.12s;
+  }
+  .months button.on{
+    color:#fff; border-color:var(--red); background:linear-gradient(#1a0403,#0c0c0c);
+    box-shadow:0 0 12px rgba(226,35,26,.5);
+  }
+
+  /* ---- 質問コーナー ---- */
+  .ask-box{ display:flex; gap:8px; align-items:flex-end; }
+  .ask-box textarea{
+    flex:1; min-width:0; min-height:52px; resize:vertical;
+    background:#0c0c0c; border:2px solid #333; border-radius:10px; padding:10px 12px;
+    color:#fff; font-size:15px; line-height:1.5;
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  }
+  .ask-box textarea:focus{ outline:none; border-color:var(--red); box-shadow:0 0 12px rgba(226,35,26,.35); }
+  .ask-box button{
+    flex:0 0 auto; padding:14px 18px;
+    font-family:inherit; font-style:italic; font-size:15px; letter-spacing:.1em;
+    color:#fff; background:linear-gradient(#1a0403,#0c0c0c);
+    border:2px solid var(--red); border-radius:10px; cursor:pointer;
+    box-shadow:0 0 12px rgba(226,35,26,.45);
+  }
+  .ask-box button:disabled{ color:#6f6f76; border-color:#333; box-shadow:none; cursor:default; }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .chips button{
+    padding:6px 11px; font-size:12px; white-space:nowrap;
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+    color:#9a9aa0; background:#0c0c0c; border:1px solid #333; border-radius:14px; cursor:pointer;
+  }
+  .chips button:active{ color:#fff; border-color:var(--red); }
+
+  #answer{ margin-top:14px; display:none; border-top:1px solid #2a2a2a; padding-top:14px; }
+  .thinking{ color:#8f8f96; font-style:italic; letter-spacing:.1em; }
+  .empty{ text-align:center; color:#8f8f96; font-style:italic; padding:30px 12px; letter-spacing:.1em; }
+
+  .nav{ display:block; margin:10px auto 0; padding:11px 20px; width:100%; text-align:center;
+    font-family:inherit; font-style:italic; letter-spacing:.16em; text-decoration:none;
+    color:#8a8a90; background:#0c0c0c; border:2px solid #2a2a2a; border-radius:20px; }
+  .foot{ text-align:center; margin-top:22px; font-size:12px; letter-spacing:.28em;
+    color:#6a6a70; font-style:italic; }
+  .foot b{ color:var(--red-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo">
+    <div class="row">
+      <svg class="bolt" viewBox="0 0 60 100" aria-hidden="true"><path d="M34 2 L6 56 H26 L22 98 L54 40 H32 Z"/></svg>
+      <h1>レポート</h1>
+      <svg class="bolt" viewBox="0 0 60 100" aria-hidden="true"><path d="M34 2 L6 56 H26 L22 98 L54 40 H32 Z"/></svg>
+    </div>
+    <p class="sub">M O N T H L Y&nbsp;&nbsp;&amp;&nbsp;&nbsp;A S K</p>
+  </div>
+  <div class="rule"></div>
+
+  <div class="card">
+    <div class="head">📅 月次まとめ <span>MONTHLY</span></div>
+    <div class="months" id="monthTabs"></div>
+    <div class="body" id="monthlyBody"><span class="empty">読み込み中…</span></div>
+    <div class="note" id="monthlyNote"></div>
+  </div>
+
+  <div class="card">
+    <div class="head">💬 聞いてみる <span>ASK</span></div>
+    <div class="ask-box">
+      <textarea id="q" placeholder="例）深睡眠が短い日は血圧が高い？" maxlength="200"></textarea>
+      <button id="askBtn" onclick="ask()">聞く</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="answer"><div class="body" id="answerBody"></div></div>
+    <div class="note">記録の数値だけをもとに答えます。メモ欄の文章は送りません。診断ではありません。</div>
+  </div>
+
+  <a id="printLink" class="nav" href="#" style="color:#cfcfd4;border-color:var(--red)">🖨 診察用に印刷する →</a>
+  <a id="viewerLink" class="nav" href="#">← グラフに戻る</a>
+  <a id="inputLink" class="nav" href="#">← 入力ページへ</a>
+
+  <p class="foot">FOR THOSE ABOUT TO <b>MEASURE</b>, WE SALUTE YOU ⚡</p>
+</div>
+
+<script>
+  // ---- 月次まとめ ----
+  var MONTHS = [];
+  var MONTH_I = 0;
+
+  function loadMonthly(){
+    google.script.run
+      .withSuccessHandler(function(list){
+        MONTHS = list || [];
+        if(!MONTHS.length){
+          document.getElementById('monthlyBody').innerHTML =
+            '<span class="empty">終わった月の記録がまだありません ⚡</span>';
+          return;
+        }
+        MONTH_I = 0;   // 最新の月から表示
+        renderMonthTabs();
+        renderMonth();
+      })
+      .withFailureHandler(function(err){
+        document.getElementById('monthlyBody').innerHTML =
+          '<span class="empty">読み込めませんでした<br>'+ (err && err.message ? err.message : '') +'</span>';
+      })
+      .getMonthlySummaries();
+  }
+
+  function renderMonthTabs(){
+    document.getElementById('monthTabs').innerHTML = MONTHS.map(function(m,i){
+      return '<button class="'+(i===MONTH_I?'on':'')+'" onclick="pickMonth('+i+')">'+m.short+'</button>';
+    }).join('');
+  }
+
+  function pickMonth(i){ MONTH_I=i; renderMonthTabs(); renderMonth(); }
+
+  function renderMonth(){
+    var m = MONTHS[MONTH_I];
+    document.getElementById('monthlyBody').textContent = m.text;
+    // タブは「7月」だけなので、年はこちらに出す
+    document.getElementById('monthlyNote').textContent =
+      m.label + '　朝平均 ' + (m.morning || '–') + '　夜平均 ' + (m.night || '–') + '　全' + m.days + '日分';
+  }
+
+  // ---- 質問コーナー ----
+  // スマホで打つのは手間なので、よく聞く質問はボタンにしておく
+  var PRESETS = [
+    '最近の傾向は？',
+    '深睡眠が短い日は血圧が高い？',
+    '朝と夜どちらが高い？',
+    '先月と比べてどう？',
+    '一番よかった日は？'
+  ];
+
+  document.getElementById('chips').innerHTML = PRESETS.map(function(p){
+    return '<button onclick="askPreset(this)">'+p+'</button>';
+  }).join('');
+
+  function askPreset(btn){
+    document.getElementById('q').value = btn.textContent;
+    ask();
+  }
+
+  function ask(){
+    var q = document.getElementById('q').value.trim();
+    if(!q) return;
+
+    var btn = document.getElementById('askBtn');
+    var box = document.getElementById('answer');
+    var body = document.getElementById('answerBody');
+
+    btn.disabled = true;
+    box.style.display = 'block';
+    body.innerHTML = '<span class="thinking">⚡ 考えています…</span>';
+
+    google.script.run
+      .withSuccessHandler(function(text){
+        btn.disabled = false;
+        body.textContent = text || '答えを作れませんでした。';
+      })
+      .withFailureHandler(function(err){
+        btn.disabled = false;
+        body.textContent = 'エラー: ' + (err && err.message ? err.message : '失敗しました');
+      })
+      .askAboutData(q);
+  }
+
+  // Ctrl+Enter でも送信できるように
+  document.getElementById('q').addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)) ask();
+  });
+
+  // ページ間のリンク
+  google.script.run.withSuccessHandler(function(url){
+    document.getElementById('printLink').href  = url + '?page=print';
+    document.getElementById('viewerLink').href = url + '?page=viewer';
+    document.getElementById('inputLink').href  = url;
+  }).getWebAppUrl();
+
+  loadMonthly();
+</script>
+</body>
+</html>
