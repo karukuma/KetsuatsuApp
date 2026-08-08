@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<style>
+  :root{
+    --red:#e2231a;
+    --red-soft:#ff4b3e;
+    --silver:#e8e8ec;
+    --bg:#050505;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; background:var(--bg); color:#fff; }
+  body{
+    font-family:'Arial Black','Arial Narrow',Impact,'Hiragino Kaku Gothic Pro',sans-serif;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 50% -10%, #2a0605 0%, transparent 55%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 2px, transparent 2px 4px),
+      var(--bg);
+    padding:18px 14px 40px;
+  }
+  .wrap{ max-width:820px; margin:0 auto; }
+
+  /* ---- ロゴ ---- */
+  .logo{ text-align:center; margin:6px 0 4px; }
+  .logo .row{ display:flex; align-items:center; justify-content:center; gap:10px; }
+  .logo h1{
+    margin:0; font-size:clamp(38px,13vw,74px); line-height:.9;
+    font-style:italic; letter-spacing:-1px;
+    color:#fff;
+    background:linear-gradient(#fff 0%,#cfcfd6 42%,#8a8a90 52%,#fff 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    text-shadow:0 0 1px rgba(255,255,255,.2);
+    filter:drop-shadow(0 3px 0 #6b0d09) drop-shadow(0 5px 6px rgba(226,35,26,.55));
+  }
+  .bolt{ width:clamp(30px,10vw,58px); height:auto; filter:drop-shadow(0 0 10px var(--red)); }
+  .bolt path{ fill:var(--red); stroke:#fff; stroke-width:6; }
+  .sub{
+    margin:6px 0 0; text-align:center; font-size:clamp(11px,3.4vw,15px);
+    letter-spacing:.32em; color:var(--red-soft); font-style:italic;
+    text-shadow:0 0 12px rgba(226,35,26,.7);
+  }
+  .rule{ height:3px; margin:14px 0 18px;
+    background:linear-gradient(90deg,transparent,var(--red) 20%,#fff 50%,var(--red) 80%,transparent);
+    box-shadow:0 0 14px var(--red); }
+
+  /* ---- 朝/夜トグル ---- */
+  .toggle{ display:flex; gap:8px; justify-content:center; margin-bottom:16px; }
+  .toggle button{
+    flex:0 0 auto; min-width:120px; padding:11px 14px;
+    font-family:inherit; font-style:italic; font-size:18px; letter-spacing:.14em;
+    color:#bdbdc4; background:#0c0c0c; border:2px solid #333; border-radius:10px;
+    text-transform:uppercase; cursor:pointer; transition:.12s;
+  }
+  .toggle button.on{
+    color:#fff; border-color:var(--red); background:linear-gradient(#1a0403,#0c0c0c);
+    box-shadow:0 0 16px rgba(226,35,26,.6), inset 0 0 12px rgba(226,35,26,.25);
+    text-shadow:0 0 10px var(--red);
+  }
+
+  /* ---- 最新値ゲージ ---- */
+  .gauges{ display:grid; grid-template-columns:repeat(auto-fit,minmax(76px,1fr)); gap:10px; margin-bottom:18px; }
+  .g{
+    background:linear-gradient(#101010,#050505); border:2px solid #2a2a2a;
+    border-radius:12px; padding:12px 6px 10px; text-align:center; position:relative; overflow:hidden;
+  }
+  .g::before{ content:""; position:absolute; inset:0 auto auto 0; width:100%; height:3px;
+    background:linear-gradient(90deg,transparent,var(--red),transparent); }
+  .g .cap{ font-size:12px; letter-spacing:.18em; color:#8f8f96; font-style:italic; text-transform:uppercase; }
+  .g .val{ font-size:clamp(30px,11vw,52px); line-height:1; margin:4px 0 2px; font-style:italic; }
+  .g .unit{ font-size:11px; color:#7d7d84; letter-spacing:.1em; }
+  .g.sys .val{ color:var(--red-soft); text-shadow:0 0 16px rgba(226,35,26,.8); }
+  .g.dia .val{ color:var(--silver); text-shadow:0 0 16px rgba(255,255,255,.55); }
+  .g.pul .val{ color:#ffd23e; text-shadow:0 0 16px rgba(255,210,62,.7); }
+  .g.deep .val{ color:#3ee06a; text-shadow:0 0 16px rgba(62,224,106,.75); }
+  .g .sub{ font-size:10px; letter-spacing:.06em; color:#6f6f76; margin-top:3px; font-style:italic; }
+
+  /* ---- グラフ ---- */
+  .card{ background:linear-gradient(#0b0b0b,#050505); border:2px solid #2a2a2a;
+    border-radius:14px; padding:12px 8px 6px; }
+  .legend{ display:flex; gap:16px; justify-content:center; margin:2px 0 8px; font-size:13px; letter-spacing:.06em; }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; color:#cfcfd4; font-style:italic; }
+  .swatch{ width:22px; height:4px; border-radius:2px; display:inline-block; }
+  .sw-sys{ background:var(--red); box-shadow:0 0 8px var(--red); }
+  .sw-dia{ background:#fff; box-shadow:0 0 8px #fff; }
+  .sw-deep{ width:14px; height:12px; border-radius:2px; background:#3ee06a; box-shadow:0 0 8px #3ee06a; }
+  .legend .note{ color:#8a8a90; font-style:italic; }
+  svg.chart{ width:100%; height:auto; display:block; }
+  .empty{ text-align:center; color:#8f8f96; font-style:italic; padding:48px 12px; letter-spacing:.1em; }
+
+  .insight{ margin-top:14px; }
+  .insight-head{ font-style:italic; letter-spacing:.12em; color:var(--red-soft);
+    font-size:16px; margin-bottom:8px; text-shadow:0 0 10px rgba(226,35,26,.6); }
+  .insight-head span{ color:#6f6f76; font-size:11px; letter-spacing:.2em; }
+  .insight-body{
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+    font-weight:400; font-style:normal; line-height:1.75; font-size:14px;
+    color:#d7d7db; letter-spacing:.01em;
+  }
+  .insight-note{ margin-top:10px; font-size:11px; color:#65656b; font-style:italic; letter-spacing:.02em;
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; }
+
+  .foot{ text-align:center; margin-top:22px; font-size:12px; letter-spacing:.28em;
+    color:#6a6a70; font-style:italic; }
+  .foot b{ color:var(--red-soft); }
+  .reload{ display:block; margin:16px auto 0; padding:9px 20px; font-family:inherit; font-style:italic;
+    letter-spacing:.16em; color:#cfcfd4; background:#0c0c0c; border:2px solid #333; border-radius:20px; cursor:pointer; }
+  .reload:active{ transform:scale(.97); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo">
+    <div class="row">
+      <svg class="bolt" viewBox="0 0 60 100" aria-hidden="true"><path d="M34 2 L6 56 H26 L22 98 L54 40 H32 Z"/></svg>
+      <h1>血圧</h1>
+      <svg class="bolt" viewBox="0 0 60 100" aria-hidden="true"><path d="M34 2 L6 56 H26 L22 98 L54 40 H32 Z"/></svg>
+    </div>
+    <p class="sub">H I G H&nbsp;&nbsp;V O L T A G E</p>
+  </div>
+  <div class="rule"></div>
+
+  <div class="toggle">
+    <button id="btnM" onclick="setSlot('morning')">⚡ 朝</button>
+    <button id="btnN" onclick="setSlot('night')">🌙 夜</button>
+    <button id="btnB" class="on" onclick="setSlot('both')">☀🌙 両方</button>
+  </div>
+
+  <div class="gauges">
+    <div class="g sys"><div class="cap">収縮期 SYS</div><div class="val" id="gSys">–</div><div class="unit">mmHg</div></div>
+    <div class="g dia"><div class="cap">拡張期 DIA</div><div class="val" id="gDia">–</div><div class="unit">mmHg</div></div>
+    <div class="g pul"><div class="cap">脈拍 PULSE</div><div class="val" id="gPul">–</div><div class="unit">bpm</div></div>
+    <div class="g deep"><div class="cap">深睡眠 SLEEP</div><div class="val" id="gDeep">–</div><div class="unit" id="gDeepU">分</div></div>
+  </div>
+
+  <div class="card">
+    <div class="legend" id="legend"></div>
+    <div id="chartHost"><div class="empty">⚡ 記録を読み込み中…</div></div>
+  </div>
+
+  <div class="card insight" id="insightCard" style="display:none">
+    <div class="insight-head">⚡ 傾向 <span>TREND</span></div>
+    <div class="insight-body" id="insightBody"></div>
+    <div class="insight-note" id="insightNote"></div>
+  </div>
+
+  <button class="reload" onclick="load()">↻ 最新に更新</button>
+  <a id="reportLink" class="reload" href="#" style="display:block;text-decoration:none;color:#cfcfd4;border-color:var(--red);box-shadow:0 0 12px rgba(226,35,26,.4)">📅 月次まとめ・質問コーナー →</a>
+  <a id="backLink" class="reload" href="#" style="display:block;text-decoration:none;color:#8a8a90;border-color:#2a2a2a">← 入力ページへ</a>
+
+  <p class="foot">FOR THOSE ABOUT TO <b>MEASURE</b>, WE SALUTE YOU ⚡</p>
+</div>
+
+<script>
+  var DATA = { days: [] };
+  var SLOT = 'both';   // 'morning' | 'night' | 'both'
+
+  function setSlot(s){
+    SLOT = s;
+    document.getElementById('btnM').classList.toggle('on', s==='morning');
+    document.getElementById('btnN').classList.toggle('on', s==='night');
+    document.getElementById('btnB').classList.toggle('on', s==='both');
+    render();
+  }
+
+  function load(){
+    document.getElementById('chartHost').innerHTML =
+      '<div class="empty">⚡ 読み込み中…</div>';
+    google.script.run
+      .withSuccessHandler(function(res){ DATA = res || {days:[]}; render(); })
+      .withFailureHandler(function(err){
+        document.getElementById('chartHost').innerHTML =
+          '<div class="empty">読み込みに失敗しました<br>'+ (err && err.message ? err.message : '') +'</div>';
+      })
+      .getChartData();
+    loadInsight();
+  }
+
+  function loadInsight(){
+    google.script.run
+      .withSuccessHandler(function(text){
+        var card=document.getElementById('insightCard');
+        if(text && String(text).trim()){
+          document.getElementById('insightBody').textContent = String(text).trim();
+          updateInsightNote();
+          card.style.display='block';
+        } else {
+          card.style.display='none';
+        }
+      })
+      .withFailureHandler(function(){ document.getElementById('insightCard').style.display='none'; })
+      .getInsight();
+  }
+
+  // 「◯/◯までの記録より」を表示（最新データ日）
+  function updateInsightNote(){
+    var days = DATA.days || [];
+    var last = days.length ? days[days.length-1].label : '';
+    document.getElementById('insightNote').textContent =
+      (last ? last+'までの記録より。' : '') + '3日ごとに更新されます。診断ではありません。';
+  }
+
+  // 分 → 「◯時間◯分」表記
+  function toHm(min){
+    if(min==null || isNaN(min)) return '';
+    var h=Math.floor(min/60), m=min%60;
+    return (h>0 ? h+'時間' : '') + m + '分';
+  }
+
+  function render(){
+    var days = DATA.days || [];
+
+    // ゲージ用：直近で値のある日（両方モードは夜→朝の順で最新を採用）
+    function latestBP(){
+      for (var i=days.length-1; i>=0; i--){
+        var order = (SLOT==='night') ? ['night','morning']
+                  : (SLOT==='morning') ? ['morning','night']
+                  : ['night','morning'];
+        for (var k=0;k<order.length;k++){
+          var s=days[i][order[k]];
+          if (s && s.sys) return { v:s, slot:order[k], label:days[i].label };
+        }
+      }
+      return null;
+    }
+    var L = latestBP();
+    document.getElementById('gSys').textContent = L ? L.v.sys : '–';
+    document.getElementById('gDia').textContent = L && L.v.dia ? L.v.dia : '–';
+    document.getElementById('gPul').textContent = L && L.v.pul ? L.v.pul : '–';
+
+    // 深睡眠ゲージ：直近で値のある日
+    var dLatest=null, dLabel='';
+    for (var j=days.length-1;j>=0;j--){ if(days[j].deep!=null){ dLatest=days[j].deep; dLabel=days[j].label; break; } }
+    document.getElementById('gDeep').textContent = dLatest!=null ? dLatest : '–';
+    document.getElementById('gDeepU').textContent = dLatest!=null ? toHm(dLatest) : '分';
+
+    // 凡例（モードに応じて）
+    var lg = '<span><i class="swatch sw-sys"></i>収縮期</span>'
+           + '<span><i class="swatch sw-dia"></i>拡張期</span>'
+           + '<span><i class="swatch sw-deep"></i>深睡眠</span>';
+    if (SLOT==='both') lg += '<span class="note">実線=朝 / 点線=夜</span>';
+    document.getElementById('legend').innerHTML = lg;
+
+    var host = document.getElementById('chartHost');
+    var hasBP = days.some(function(d){ return (d.morning&&d.morning.sys)||(d.night&&d.night.sys); });
+    var hasDeep = days.some(function(d){ return d.deep!=null; });
+    if (!hasBP && !hasDeep){
+      host.innerHTML = '<div class="empty">記録がまだありません ⚡</div>';
+      return;
+    }
+    host.innerHTML = buildChart(days);
+    if (document.getElementById('insightCard').style.display !== 'none') updateInsightNote();
+  }
+
+  function buildChart(days){
+    var W=820, H=400, pad={l:46,r:46,t:22,b:46};
+    var iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
+    var n=days.length;
+
+    // 表示するライン系列（slot・収縮/拡張・色・破線）
+    var series=[];
+    function addSlot(slot, dash){
+      series.push({slot:slot,key:'sys',color:'#e2231a',glow:'glowR',w:3.2,dash:dash});
+      series.push({slot:slot,key:'dia',color:'#ffffff',glow:'glowW',w:2.6,dash:dash});
+    }
+    if(SLOT==='morning') addSlot('morning','');
+    else if(SLOT==='night') addSlot('night','');
+    else { addSlot('morning',''); addSlot('night','6 5'); }
+
+    // 左軸（血圧 mmHg）
+    var bp=[];
+    series.forEach(function(s){ days.forEach(function(d){ var v=d[s.slot]&&d[s.slot][s.key]; if(v) bp.push(v); }); });
+    var lo,hi;
+    if(bp.length){ var mn=Math.min.apply(null,bp), mx=Math.max.apply(null,bp);
+      lo=Math.floor((mn-8)/20)*20; hi=Math.ceil((mx+8)/20)*20; if(lo<0)lo=0; if(hi-lo<40)hi=lo+40;
+    } else { lo=40; hi=180; }
+
+    // 右軸（深睡眠 分）
+    var deeps=days.map(function(d){return d.deep;}).filter(function(v){return v!=null && !isNaN(v);});
+    var maxDeep = deeps.length ? Math.max.apply(null,deeps) : 0;
+    var hiDeep = Math.max(40, Math.ceil(maxDeep/20)*20 + 20);
+
+    function x(i){ return pad.l + (n===1 ? iw/2 : iw*i/(n-1)); }
+    function yL(v){ return pad.t + ih*(hi-v)/(hi-lo); }
+    function yR(v){ return (H-pad.b) - ih*(v/hiDeep); }
+
+    var svg='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+    svg+='<defs>'
+       + '<filter id="glowR" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+       + '<filter id="glowW" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+       + '<filter id="glowG" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+       + '</defs>';
+
+    // グリッド＋左Y目盛（mmHg）
+    for(var g=lo; g<=hi; g+=20){
+      var gy=yL(g);
+      svg+='<line x1="'+pad.l+'" y1="'+gy+'" x2="'+(W-pad.r)+'" y2="'+gy+'" stroke="#242424" stroke-width="1"/>';
+      svg+='<text x="'+(pad.l-8)+'" y="'+(gy+4)+'" fill="#7d7d84" font-size="13" font-style="italic" text-anchor="end">'+g+'</text>';
+    }
+    // 右Y目盛（深睡眠 分・緑）
+    for(var r=0; r<=hiDeep; r+=20){
+      var ry=yR(r);
+      svg+='<text x="'+(W-pad.r+7)+'" y="'+(ry+4)+'" fill="#2f9e46" font-size="12" font-style="italic" text-anchor="start">'+r+'</text>';
+    }
+    // 家庭血圧の高血圧ライン（収縮135 / 拡張85）
+    [135,85].forEach(function(t){
+      if(t>lo && t<hi){ var ty=yL(t);
+        svg+='<line x1="'+pad.l+'" y1="'+ty+'" x2="'+(W-pad.r)+'" y2="'+ty+'" stroke="#e2231a" stroke-width="1" stroke-dasharray="4 6" opacity=".35"/>';
+      }
+    });
+
+    // X軸ラベル（多いときは間引き）
+    var step=Math.ceil(n/9);
+    days.forEach(function(d,i){
+      if(i%step===0 || i===n-1){
+        svg+='<text x="'+x(i)+'" y="'+(H-pad.b+22)+'" fill="#9a9aa0" font-size="13" font-style="italic" text-anchor="middle">'+d.label+'</text>';
+      }
+    });
+
+    // ① 深睡眠バー（緑・右軸）— ラインの後ろに描く
+    var barW=Math.max(4, Math.min(20, (iw/Math.max(n,1))*0.5));
+    var showBarLabel = n<=20;
+    days.forEach(function(d,i){
+      if(d.deep==null || isNaN(d.deep)) return;
+      var bx=x(i)-barW/2, by=yR(d.deep), bh=(H-pad.b)-by;
+      svg+='<rect x="'+bx+'" y="'+by+'" width="'+barW+'" height="'+bh+'" rx="2" fill="#3ee06a" opacity=".5" filter="url(#glowG)"/>';
+      if(showBarLabel) svg+='<text x="'+x(i)+'" y="'+(by-5)+'" fill="#8ff0a6" font-size="11" font-style="italic" text-anchor="middle">'+d.deep+'</text>';
+    });
+
+    // ② 血圧ライン
+    series.forEach(function(s){
+      var dd='', pen=false;
+      days.forEach(function(d,i){
+        var v=d[s.slot]&&d[s.slot][s.key];
+        if(v){ dd+=(pen?' L':' M')+x(i)+' '+yL(v); pen=true; } else pen=false;
+      });
+      if(dd){
+        svg+='<path d="'+dd.trim()+'" fill="none" stroke="'+s.color+'" stroke-width="'+s.w+'" '
+           + 'stroke-linejoin="round" stroke-linecap="round" '
+           + (s.dash?('stroke-dasharray="'+s.dash+'" '):'')
+           + 'filter="url(#'+s.glow+')" opacity="'+(s.key==='dia'?.92:1)+'"/>';
+      }
+    });
+
+    // ③ 点（実線系列のみ）
+    series.filter(function(s){return !s.dash;}).forEach(function(s){
+      days.forEach(function(d,i){
+        var v=d[s.slot]&&d[s.slot][s.key];
+        if(v) svg+='<circle cx="'+x(i)+'" cy="'+yL(v)+'" r="'+(s.key==='sys'?3.4:3)+'" fill="'+s.color+'"'+(s.key==='sys'?' stroke="#fff" stroke-width="1"':'')+'/>';
+      });
+    });
+
+    svg+='</svg>';
+    return svg;
+  }
+
+  // ページ間のリンク
+  google.script.run.withSuccessHandler(function (url) {
+    document.getElementById('backLink').href = url;
+    document.getElementById('reportLink').href = url + '?page=report';
+  }).getWebAppUrl();
+
+  load();
+</script>
+</body>
+</html>
