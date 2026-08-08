@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --card: #ffffff;
+    --line: #e2e0d9;
+    --text: #26262a;
+    --sub: #706f6a;
+    --accent: #1f6f5c;
+    --accent-dark: #175447;
+    --warn: #a8452f;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    padding: 18px 14px 40px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.5;
+  }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  .today { font-size: 13px; color: var(--sub); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 14px;
+    margin-bottom: 14px;
+  }
+
+  /* ---- 連続記録日数 ---- */
+  .streak {
+    display: none;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 12px;
+    margin-bottom: 14px;
+    background: linear-gradient(#ffffff, #f4faf8);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .streak .n {
+    font-size: 22px; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .streak .lbl { font-size: 13px; color: var(--sub); }
+  .streak .next {
+    font-size: 12px; color: var(--accent); font-weight: 600;
+    padding-left: 8px; margin-left: 4px; border-left: 1px solid var(--line);
+  }
+
+  /* ---- 目標の達成状況（直近30日の8割） ---- */
+  .goal {
+    display: none;
+    font-size: 12px;
+    text-align: center;
+    color: var(--sub);
+    padding: 9px 12px;
+    margin: -6px 0 14px;
+    background: #f2f4f3;
+    border-radius: 0 0 12px 12px;
+  }
+  .goal b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .goal.done { color: var(--accent-dark); background: #e8f3ef; }
+  .goal.done b { color: var(--accent-dark); }
+
+  .last-hint {
+    font-size: 12px;
+    color: var(--sub);
+    text-align: center;
+    padding: 8px;
+    background: #f2f4f3;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  .last-hint b { color: var(--text); font-weight: 600; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .row label {
+    width: 74px;
+    flex-shrink: 0;
+    font-size: 14px;
+    color: var(--sub);
+  }
+  .row input {
+    flex: 1;
+    min-width: 0;
+    padding: 16px 14px;
+    font-size: 30px;
+    font-weight: 600;
+    text-align: center;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .row input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: #f6fbf9;
+  }
+  .row .unit {
+    width: 46px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--sub);
+  }
+
+  .optional-toggle {
+    text-align: center;
+    font-size: 13px;
+    color: var(--accent);
+    padding: 6px;
+    cursor: pointer;
+  }
+  #memoBox { display: none; margin-top: 6px; }
+  #memoBox textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    min-height: 54px;
+    resize: vertical;
+  }
+
+  button.save {
+    width: 100%;
+    padding: 18px;
+    margin-top: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  button.save:active { background: var(--accent-dark); }
+  button.save:disabled { background: #b6c3bf; }
+
+  .msg {
+    display: none;
+    font-size: 13px;
+    color: var(--warn);
+    text-align: center;
+    padding-top: 10px;
+  }
+
+  .done { display: none; text-align: center; padding: 26px 12px; }
+  .done .mark { font-size: 32px; color: var(--accent); line-height: 1; }
+  .done .val {
+    font-size: 26px;
+    font-weight: 600;
+    margin: 10px 0 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .done .at { font-size: 13px; color: var(--sub); margin-bottom: 18px; }
+  .done button {
+    padding: 12px 28px;
+    border: 1px solid var(--accent);
+    background: #fff;
+    color: var(--accent);
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .viewer-link {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    padding: 14px;
+    margin-top: 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--accent);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .viewer-link:active { background: #f2f4f3; }
+
+  /* ---- お祝いエフェクト ---- */
+  .fx {
+    position: fixed; inset: 0; z-index: 99;
+    display: none; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 45%, rgba(120,14,8,.97), rgba(6,6,6,.98));
+  }
+  .fx.show { display: flex; animation: fxIn .18s ease-out; }
+  .fx.out { animation: fxOut .45s ease-in forwards; }
+  @keyframes fxIn  { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes fxOut { to { opacity: 0 } }
+
+  .fx-inner { text-align: center; padding: 20px; animation: fxPop .5s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes fxPop { 0% { transform: scale(.4) } 60% { transform: scale(1.08) } 100% { transform: scale(1) } }
+
+  .fx-bolt { width: 60px; height: auto; filter: drop-shadow(0 0 14px #ff3b2f); animation: fxBolt .3s steps(2) 4; }
+  .fx-bolt path { fill: #ffd23e; stroke: #fff; stroke-width: 6; }
+  @keyframes fxBolt { 50% { opacity: .25 } }
+
+  .fx-text {
+    margin-top: 4px;
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-style: italic; font-size: clamp(30px, 10vw, 54px);
+    line-height: 1; letter-spacing: -1px;
+    background: linear-gradient(#fff 0%, #d6d6dc 42%, #8a8a90 52%, #fff 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 3px 0 #6b0d09) drop-shadow(0 4px 10px rgba(226,35,26,.7));
+  }
+  .fx-val {
+    margin-top: 10px; color: #fff; font-size: 30px; font-weight: 700;
+    font-variant-numeric: tabular-nums; text-shadow: 0 0 14px rgba(255,255,255,.5);
+  }
+  .fx-sub { margin-top: 8px; color: #ffd23e; font-size: 14px; font-weight: 600; letter-spacing: .16em; font-style: italic; }
+  .fx-tap { margin-top: 22px; color: #8a8a90; font-size: 11px; letter-spacing: .1em; }
+
+  .shake { animation: shake .4s; }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-2px) }
+    20%, 80% { transform: translateX(4px) }
+    30%, 50%, 70% { transform: translateX(-7px) }
+    40%, 60% { transform: translateX(7px) }
+  }
+
+  .hist-title { font-size: 12px; color: var(--sub); font-weight: 600; margin: 0 0 8px; }
+  .hist-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .hist-row:last-child { border-bottom: none; }
+  .hist-when { color: var(--sub); }
+  .hist-val { font-variant-numeric: tabular-nums; font-weight: 500; }
+  .hist-pulse { color: var(--sub); font-weight: 400; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>血圧記録</h1>
+  <span class="today" id="today"></span>
+</div>
+
+<div class="streak" id="streak"></div>
+<div class="goal" id="goal"></div>
+
+<div class="card" id="inputCard">
+  <div class="last-hint" id="lastHint" style="display:none"></div>
+
+  <div class="row">
+    <label for="sys">上（収縮）</label>
+    <input type="number" id="sys" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="---">
+    <span class="unit">mmHg</span>
+  </div>
+  <div class="row">
+    <label for="dia">下（拡張）</label>
+    <input type="number" id="dia" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="---">
+    <span class="unit">mmHg</span>
+  </div>
+  <div class="row">
+    <label for="pul">脈拍</label>
+    <input type="number" id="pul" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="---">
+    <span class="unit">回/分</span>
+  </div>
+  <div class="row" id="deepRow">
+    <label for="deep">深睡眠</label>
+    <input type="number" id="deep" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="---">
+    <span class="unit">分</span>
+  </div>
+  <p id="deepNote" style="font-size:12px;color:var(--sub);margin:-6px 0 14px;text-align:right">朝に1回だけ（昨夜の深い睡眠・分）</p>
+
+  <div class="optional-toggle" id="memoToggle">＋ メモを追加</div>
+  <div id="memoBox"><textarea id="memo" placeholder="朝食前、運動後 など"></textarea></div>
+
+  <button class="save" id="saveBtn">記録する</button>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="card done" id="doneCard">
+  <div class="mark">✓</div>
+  <div class="val" id="doneVal"></div>
+  <div class="at" id="doneAt"></div>
+  <button onclick="resetForm()">続けて記録する</button>
+</div>
+
+<div class="card">
+  <p class="hist-title">最近の記録</p>
+  <div id="history"><p style="font-size:13px;color:var(--sub);margin:0">読み込み中…</p></div>
+</div>
+
+<a id="viewerLink" class="viewer-link" href="#">⚡ グラフ（ビューア）を開く</a>
+
+<div class="fx" id="fx" onclick="hideFx(true)">
+  <div class="fx-inner">
+    <svg class="fx-bolt" viewBox="0 0 60 100" aria-hidden="true"><path d="M34 2 L6 56 H26 L22 98 L54 40 H32 Z"/></svg>
+    <div class="fx-text" id="fxText"></div>
+    <div class="fx-val" id="fxVal"></div>
+    <div class="fx-sub" id="fxSub"></div>
+    <div class="fx-tap">タップで閉じる</div>
+  </div>
+</div>
+
+<script>
+  var sysEl = document.getElementById('sys');
+  var diaEl = document.getElementById('dia');
+  var pulEl = document.getElementById('pul');
+  var deepEl = document.getElementById('deep');
+  var saveBtn = document.getElementById('saveBtn');
+  var msgEl = document.getElementById('msg');
+
+  // 深睡眠は「朝に1回」なので、午前中（0〜10時台）だけ表示する
+  (function () {
+    if (new Date().getHours() >= 11) {
+      document.getElementById('deepRow').style.display = 'none';
+      document.getElementById('deepNote').style.display = 'none';
+    }
+  })();
+
+  // 今日の日付を表示
+  (function () {
+    var d = new Date();
+    var w = ['日','月','火','水','木','金','土'][d.getDay()];
+    document.getElementById('today').textContent = (d.getMonth()+1) + '月' + d.getDate() + '日(' + w + ')';
+  })();
+
+  // 3桁入れたら自動で次の欄へ
+  function autoAdvance(from, to) {
+    from.addEventListener('input', function () {
+      if (from.value.length >= 3) to.focus();
+    });
+  }
+  autoAdvance(sysEl, diaEl);
+  autoAdvance(diaEl, pulEl);
+
+  // 起動したらすぐ入力できる状態に
+  window.addEventListener('load', function () { sysEl.focus(); });
+
+  // メモ欄の開閉
+  document.getElementById('memoToggle').addEventListener('click', function () {
+    var box = document.getElementById('memoBox');
+    var open = box.style.display === 'block';
+    box.style.display = open ? 'none' : 'block';
+    this.textContent = open ? '＋ メモを追加' : '− メモを閉じる';
+    if (!open) document.getElementById('memo').focus();
+  });
+
+  // Enterで記録
+  pulEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') save();
+  });
+
+  saveBtn.addEventListener('click', save);
+
+  function save() {
+    var sys = sysEl.value, dia = diaEl.value, pul = pulEl.value;
+
+    if (!sys || !dia) {
+      showMsg('上と下の値を入力してください');
+      (!sys ? sysEl : diaEl).focus();
+      return;
+    }
+    if (Number(sys) <= Number(dia)) {
+      showMsg('上と下の値が逆になっていませんか？');
+      return;
+    }
+
+    hideMsg();
+    saveBtn.disabled = true;
+    saveBtn.textContent = '記録中…';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        document.getElementById('doneVal').textContent = sys + ' / ' + dia + (pul ? '　脈 ' + pul : '');
+        document.getElementById('doneAt').textContent = res.savedAt;
+        document.getElementById('inputCard').style.display = 'none';
+        document.getElementById('doneCard').style.display = 'block';
+        loadData();
+        celebrate(sys, dia);
+      })
+      .withFailureHandler(function (err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '記録する';
+        showMsg(err.message || '保存できませんでした');
+      })
+      .saveRecord({
+        systolic: sys,
+        diastolic: dia,
+        pulse: pul,
+        deepSleep: deepEl.value,
+        memo: document.getElementById('memo').value
+      });
+  }
+
+  // ===== お祝いエフェクト =====
+  // ★自分の音を使うときは、ここに data URI を貼る（短いmp3をbase64化したもの）
+  //   例: var CUSTOM_SOUND = 'data:audio/mpeg;base64,SUQzBAAAA...';
+  //   空のままなら、下の合成音（パワーコード）が鳴る
+    var CUSTOM_SOUND = '';
+
+  // NICE は家庭血圧の目安（収縮期135 / 拡張期85 未満）そのもの。
+  // 画面に「目安をクリアしました」と出すので、ここを緩めると表示が嘘になる。
+  // 集計側の HOME_SYS / HOME_DIA と同じ数字なので、変えるなら両方そろえること。
+  // HIGH VOLTAGE はさらに下の 130/80 未満
+  function gradeOf(sys, dia) {
+    if (sys < 130 && dia < 80) return 2;   // HIGH VOLTAGE（130/80未満）
+    if (sys < 135 && dia < 85) return 1;   // NICE（家庭血圧の目安）
+    return 0;
+  }
+
+  function celebrate(sys, dia) {
+    var grade = gradeOf(Number(sys), Number(dia));
+    if (!grade) return;
+
+    document.getElementById('fxText').textContent = grade === 2 ? 'HIGH VOLTAGE' : 'NICE';
+    document.getElementById('fxVal').textContent  = sys + ' / ' + dia;
+    document.getElementById('fxSub').textContent  =
+      grade === 2 ? '文句なしの記録です' : '目安をクリアしました';
+
+    document.getElementById('fx').className = 'fx show';
+    document.body.classList.add('shake');
+    setTimeout(function () { document.body.classList.remove('shake'); }, 450);
+
+    playSound(grade);
+    setTimeout(hideFx, grade === 2 ? 2600 : 1800);
+  }
+
+  function hideFx(byTap) {
+    var fx = document.getElementById('fx');
+    if (fx.className.indexOf('show') < 0) return;
+    fx.className = 'fx show out';
+    setTimeout(function () { fx.className = 'fx'; }, 450);
+    // 自分で閉じたときは音も止める（時間で消えるときは曲を最後まで鳴らす）
+    if (byTap) stopSound();
+  }
+
+  function stopSound() {
+    if (!CURRENT_AUDIO) return;
+    try { CURRENT_AUDIO.pause(); } catch (e) {}
+    CURRENT_AUDIO = null;
+  }
+
+  /** afterMs で止める。最後の fadeMs でフェードして、ぶつ切りを避ける */
+  function fadeOutAndStop_(audio, afterMs, fadeMs) {
+    setTimeout(function () {
+      var steps = 10, i = 0;
+      var timer = setInterval(function () {
+        i++;
+        try { audio.volume = Math.max(0, 1 - i / steps); } catch (e) {}
+        if (i >= steps) {
+          clearInterval(timer);
+          try { audio.pause(); } catch (e) {}
+          if (CURRENT_AUDIO === audio) CURRENT_AUDIO = null;
+        }
+      }, fadeMs / steps);
+    }, Math.max(0, afterMs - fadeMs));
+  }
+
+  var CURRENT_AUDIO = null;
+
+  // 「記録する」をタップした直後に呼ばれるので、スマホの自動再生ブロックにかからない
+  function playSound(grade) {
+    if (CUSTOM_SOUND) {
+      try {
+        stopSound();
+        var a = new Audio(CUSTOM_SOUND);
+        CURRENT_AUDIO = a;
+        a.play();
+        // NICE は頭の1.5秒だけ。HIGH VOLTAGE は最後まで鳴らす
+        if (grade === 1) fadeOutAndStop_(a, 1500, 300);
+      } catch (e) {}
+      return;
+    }
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      var ctx = new AC();
+      var t = ctx.currentTime;
+      var dur = grade === 2 ? 1.6 : 1.0;
+      // パワーコード（ルート・5度・オクターブ）を歪ませ気味に重ねる
+      var freqs = grade === 2 ? [110, 164.81, 220, 329.63] : [146.83, 220, 293.66];
+
+      freqs.forEach(function (f) {
+        var o = ctx.createOscillator();
+        var g = ctx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(f, t);
+        o.frequency.exponentialRampToValueAtTime(f * 0.985, t + dur);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.12, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + dur + 0.1);
+      });
+    } catch (e) {}
+  }
+
+  function resetForm() {
+    sysEl.value = ''; diaEl.value = ''; pulEl.value = ''; deepEl.value = '';
+    document.getElementById('memo').value = '';
+    document.getElementById('memoBox').style.display = 'none';
+    document.getElementById('memoToggle').textContent = '＋ メモを追加';
+    saveBtn.disabled = false;
+    saveBtn.textContent = '記録する';
+    document.getElementById('doneCard').style.display = 'none';
+    document.getElementById('inputCard').style.display = 'block';
+    hideMsg();
+    sysEl.focus();
+  }
+
+  // 連続記録日数。今日まだなら「今日測れば◯日目」と、これからの行動に結びつけて出す
+  function renderStreak(s) {
+    var el = document.getElementById('streak');
+    if (!s || (!s.days && s.todayDone)) { el.style.display = 'none'; return; }
+
+    var html;
+    if (s.todayDone) {
+      html = '<span class="lbl">⚡ 連続</span>' +
+             '<span class="n">' + s.days + '</span><span class="lbl">日</span>';
+      if (s.next && s.remain > 0) {
+        html += '<span class="next">あと' + s.remain + '日で' + s.next + '日</span>';
+      }
+    } else if (s.days > 0) {
+      html = '<span class="lbl">⚡ 連続</span>' +
+             '<span class="n">' + s.days + '</span><span class="lbl">日</span>' +
+             '<span class="next">今日測れば' + (s.days + 1) + '日目</span>';
+    } else {
+      el.style.display = 'none';
+      return;
+    }
+
+    el.innerHTML = html;
+    el.style.display = 'flex';
+  }
+
+  // 直近30日の8割が基準値以下か。達成/未達成は日々入れ替わるので、毎日ここを見る動機になる
+  function renderGoal(g) {
+    var el = document.getElementById('goal');
+    if (!g || !g.ready) { el.style.display = 'none'; return; }
+
+    if (g.achieved) {
+      el.className = 'goal done';
+      el.innerHTML = '🎯 達成中　直近' + g.total + '日のうち <b>' + g.ok + '日</b> が基準値以下';
+    } else {
+      el.className = 'goal';
+      el.innerHTML = '直近' + g.total + '日のうち <b>' + g.ok + '日</b> が基準値以下' +
+                     '（達成まであと <b>' + g.remain + '日</b>）';
+    }
+    el.style.display = 'block';
+  }
+
+  function showMsg(t) { msgEl.textContent = t; msgEl.style.display = 'block'; }
+  function hideMsg() { msgEl.style.display = 'none'; }
+
+  function loadData() {
+    google.script.run
+      .withSuccessHandler(function (data) {
+        renderStreak(data.streak);
+        renderGoal(data.goal);
+
+        // 前回値のヒント
+        if (data.last) {
+          var h = document.getElementById('lastHint');
+          h.innerHTML = '前回（' + data.last.date + ' ' + data.last.slot + '）　<b>' +
+                        data.last.systolic + ' / ' + data.last.diastolic + '</b>';
+          h.style.display = 'block';
+        }
+        // 履歴
+        var box = document.getElementById('history');
+        if (!data.history.length) {
+          box.innerHTML = '<p style="font-size:13px;color:var(--sub);margin:0">まだ記録がありません</p>';
+          return;
+        }
+        box.innerHTML = data.history.map(function (r) {
+          return '<div class="hist-row">' +
+                 '<span class="hist-when">' + r.date + ' ' + r.time + '</span>' +
+                 '<span class="hist-val">' + r.systolic + ' / ' + r.diastolic +
+                 (r.pulse ? ' <span class="hist-pulse">脈 ' + r.pulse + '</span>' : '') +
+                 '</span></div>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) {
+        document.getElementById('history').innerHTML =
+          '<p style="font-size:13px;color:var(--warn);margin:0">読み込めませんでした<br>' +
+          ((err && err.message) ? err.message : '') + '</p>';
+      })
+      .getInitialData();
+  }
+
+  // ビューアへのリンク先を設定（?page=viewer を付与）
+  google.script.run.withSuccessHandler(function (url) {
+    document.getElementById('viewerLink').href = url + '?page=viewer';
+  }).getWebAppUrl();
+
+  loadData();
+</script>
+</body>
+</html>
