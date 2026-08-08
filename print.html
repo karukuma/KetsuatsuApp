@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<style>
+  /* 診察に持っていく紙。読み手は医師なので、装飾はせず白地に黒で作る */
+  @page { size: A4 portrait; margin: 12mm; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px;
+    background: #fff; color: #111;
+    font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    font-size: 13px; line-height: 1.5;
+  }
+  .sheet { max-width: 800px; margin: 0 auto; }
+
+  h1 { font-size: 17px; margin: 0 0 1px; font-weight: 700; letter-spacing: .02em; }
+  .period { font-size: 12px; color: #444; margin-bottom: 10px; }
+
+  /* ---- 操作（印刷には出さない） ---- */
+  .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .bar button {
+    padding: 9px 16px; font-size: 14px; font-family: inherit; cursor: pointer;
+    background: #fff; color: #222; border: 1px solid #bbb; border-radius: 7px;
+  }
+  .bar button.on { background: #1f6f5c; border-color: #1f6f5c; color: #fff; font-weight: 600; }
+  .bar .go { background: #1f6f5c; border-color: #1f6f5c; color: #fff; font-weight: 600; margin-left: auto; }
+  .hint { font-size: 12px; color: #666; margin-bottom: 16px; }
+
+  /* ---- サマリ ---- */
+  .sum { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid #999; margin-bottom: 10px; }
+  .sum div { flex: 1 1 25%; padding: 5px 9px; border-right: 1px solid #ccc; }
+  .sum div:last-child { border-right: none; }
+  .sum .k { font-size: 10px; color: #555; }
+  .sum .v { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ---- グラフ ---- */
+  .chart-wrap { border: 1px solid #999; padding: 4px 5px 2px; margin-bottom: 10px; }
+  svg { width: 100%; height: auto; display: block; }
+  .legend { display: flex; gap: 12px; justify-content: center; font-size: 10px; color: #333; margin-top: 2px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 16px; height: 0; border-top-width: 2px; vertical-align: middle; margin-right: 3px; }
+
+  /* ---- 表 ---- */
+  h2 { font-size: 12px; margin: 0 0 3px; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  th, td { border: 1px solid #999; padding: 1px 5px; font-size: 10.5px; line-height: 1.35; }
+  th { background: #eee; font-weight: 600; font-size: 9.5px; }
+  td { font-variant-numeric: tabular-nums; }
+  td.d { width: 4.2em; }
+  td.w { width: 2.2em; text-align: center; }
+  td.t { width: 3.4em; color: #555; font-size: 9.5px; }
+  td.v { width: 5em; }
+  td.note { color: #555; font-size: 9.5px; }
+  tr.sun td.w { color: #c00; }
+  tr.sat td.w { color: #06c; }
+  td.hi { font-weight: 700; }
+
+  .foot { font-size: 9.5px; color: #555; border-top: 1px solid #ccc; padding-top: 4px; }
+  .empty { padding: 30px; text-align: center; color: #666; }
+
+  @media print {
+    body { padding: 0; }
+    .bar, .hint { display: none; }
+    /* 月ごとに改ページはしない。1行だけの月でも新しい紙が始まってしまうため。
+       入りきらないときだけブラウザが自然に折り返す */
+    tr { page-break-inside: avoid; }
+    h2 { page-break-after: avoid; }
+    thead { display: table-header-group; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <h1>家庭血圧の記録</h1>
+  <div class="period" id="period">読み込み中…</div>
+
+  <div class="bar">
+    <button id="b1" class="on" onclick="setMonths(1)">直近1か月</button>
+    <button id="b3" onclick="setMonths(3)">直近3か月</button>
+    <button class="go" onclick="window.print()">印刷 / PDFで保存</button>
+  </div>
+  <div class="hint">
+    印刷ダイアログで「送信先」を <b>PDFに保存</b> にするとファイルになります。
+    スマホは共有メニューからプリントを選んでください。
+  </div>
+
+  <div id="body"><div class="empty">読み込み中…</div></div>
+</div>
+
+<script>
+  var MONTHS = 1;
+  var DATA = null;
+
+  function setMonths(n){
+    MONTHS = n;
+    document.getElementById('b1').className = (n===1 ? 'on' : '');
+    document.getElementById('b3').className = (n===3 ? 'on' : '');
+    load();
+  }
+
+  function load(){
+    document.getElementById('body').innerHTML = '<div class="empty">読み込み中…</div>';
+    google.script.run
+      .withSuccessHandler(function(res){ DATA = res; render(); })
+      .withFailureHandler(function(err){
+        document.getElementById('body').innerHTML =
+          '<div class="empty">読み込めませんでした<br>' + (err && err.message ? err.message : '') + '</div>';
+      })
+      .getPrintData(MONTHS);
+  }
+
+  function render(){
+    if(!DATA){ return; }
+    document.getElementById('period').textContent = DATA.label;
+
+    var s = DATA.stats;
+    if(!DATA.days.length){
+      document.getElementById('body').innerHTML = '<div class="empty">この期間の記録がありません</div>';
+      return;
+    }
+
+    var html =
+      '<div class="sum">' +
+        cell('記録した日数', s.recorded + ' 日') +
+        cell('朝の平均', s.mSys ? s.mSys + ' / ' + s.mDia : '–') +
+        cell('夜の平均', s.nSys ? s.nSys + ' / ' + s.nDia : '–') +
+        cell('目安（' + s.goalSys + '/' + s.goalDia + '）を超えた日', s.over + ' 日') +
+      '</div>' +
+      '<div class="chart-wrap">' + chart(DATA.days) + legend() + '</div>' +
+      tables(DATA.days) +
+      '<div class="foot">家庭血圧の目安は収縮期' + s.goalSys + ' / 拡張期' + s.goalDia +
+      '未満。朝は起床後、夜は就寝前に測定。1日に複数回測った場合はその平均を記載。</div>';
+
+    document.getElementById('body').innerHTML = html;
+  }
+
+  function cell(k, v){ return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
+
+  function legend(){
+    return '<div class="legend">' +
+      '<span><i style="border-top:2px solid #b3261e"></i>朝 収縮期</span>' +
+      '<span><i style="border-top:2px solid #1a3f8f"></i>朝 拡張期</span>' +
+      '<span><i style="border-top:2px dashed #b3261e"></i>夜 収縮期</span>' +
+      '<span><i style="border-top:2px dashed #1a3f8f"></i>夜 拡張期</span>' +
+      '</div>';
+  }
+
+  // 白地・細い線・目安ラインつき。画面用のグローや黒背景は使わない
+  function chart(days){
+    // 表を1ページに収めるため、グラフは低めに抑える
+    var W = 800, H = 175, pad = { l: 32, r: 10, t: 8, b: 22 };
+    var iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    var n = days.length;
+
+    var vals = [];
+    days.forEach(function(d){
+      ['morning','night'].forEach(function(k){
+        if(d[k].sys){ vals.push(d[k].sys); vals.push(d[k].dia); }
+      });
+    });
+    if(!vals.length) return '';
+
+    var lo = Math.floor((Math.min.apply(null, vals) - 10) / 10) * 10;
+    var hi = Math.ceil((Math.max.apply(null, vals) + 10) / 10) * 10;
+    if(lo < 40) lo = 40;
+
+    function x(i){ return pad.l + (n === 1 ? iw/2 : iw * i / (n-1)); }
+    function y(v){ return pad.t + ih * (hi - v) / (hi - lo); }
+
+    var svg = '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+
+    // 目盛
+    for(var g = lo; g <= hi; g += 20){
+      svg += '<line x1="'+pad.l+'" y1="'+y(g)+'" x2="'+(W-pad.r)+'" y2="'+y(g)+'" stroke="#ddd" stroke-width="1"/>' +
+             '<text x="'+(pad.l-5)+'" y="'+(y(g)+4)+'" font-size="10" fill="#666" text-anchor="end">'+g+'</text>';
+    }
+    // 目安ライン
+    [DATA.stats.goalSys, DATA.stats.goalDia].forEach(function(t){
+      if(t > lo && t < hi){
+        svg += '<line x1="'+pad.l+'" y1="'+y(t)+'" x2="'+(W-pad.r)+'" y2="'+y(t)+'" stroke="#999" stroke-width="1" stroke-dasharray="5 4"/>' +
+               '<text x="'+(W-pad.r)+'" y="'+(y(t)-3)+'" font-size="9" fill="#666" text-anchor="end">目安 '+t+'</text>';
+      }
+    });
+    // 日付ラベル（詰まらないよう間引く）
+    var step = Math.ceil(n / 12);
+    days.forEach(function(d,i){
+      if(i % step === 0 || i === n-1){
+        svg += '<text x="'+x(i)+'" y="'+(H-pad.b+14)+'" font-size="9" fill="#555" text-anchor="middle">'+d.label+'</text>';
+      }
+    });
+
+    [['morning','', ''], ['night','4 3','']].forEach(function(cfg){
+      [['sys','#b3261e'], ['dia','#1a3f8f']].forEach(function(kv){
+        var dd = '', pen = false;
+        days.forEach(function(d,i){
+          var v = d[cfg[0]][kv[0]];
+          if(v){ dd += (pen ? ' L' : ' M') + x(i) + ' ' + y(v); pen = true; } else { pen = false; }
+        });
+        if(dd){
+          svg += '<path d="'+dd.trim()+'" fill="none" stroke="'+kv[1]+'" stroke-width="1.4"' +
+                 (cfg[1] ? ' stroke-dasharray="'+cfg[1]+'"' : '') + '/>';
+        }
+      });
+    });
+
+    return svg + '</svg>';
+  }
+
+  // 月ごとに表を分ける。3か月選択時はページも分かれる
+  function tables(days){
+    var groups = [], cur = null;
+    days.forEach(function(d){
+      var key = d.date.slice(0, 7);
+      if(!cur || cur.key !== key){ cur = { key: key, rows: [] }; groups.push(cur); }
+      cur.rows.push(d);
+    });
+
+    return groups.map(function(g){
+      var p = g.key.split('/');
+      var head = p[0] + '年' + Number(p[1]) + '月';
+      var rows = g.rows.map(function(d){
+        var cls = d.wd === '日' ? ' class="sun"' : d.wd === '土' ? ' class="sat"' : '';
+        return '<tr'+cls+'>' +
+          '<td class="d">' + d.label + '</td>' +
+          '<td class="w">' + d.wd + '</td>' +
+          '<td class="t">' + (d.morning.time || '') + '</td>' +
+          '<td class="v' + hi(d.morning) + '">' + val(d.morning) + '</td>' +
+          '<td class="t">' + (d.night.time || '') + '</td>' +
+          '<td class="v' + hi(d.night) + '">' + val(d.night) + '</td>' +
+          '<td class="note">' + note(d) + '</td>' +
+        '</tr>';
+      }).join('');
+
+      // 見出しは thead に入れる。ページをまたいだときに各ページの先頭で繰り返される
+      return '<div class="month"><h2>' + head + '</h2><table>' +
+        '<thead><tr><th>日付</th><th></th><th>時刻</th><th>朝</th><th>時刻</th><th>夜</th><th>備考</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table></div>';
+    }).join('');
+  }
+
+  function val(s){ return s.sys ? s.sys + ' / ' + s.dia : '—'; }
+
+  // 目安を超えた値は太字にして、めくったときに目に入るようにする
+  function hi(s){
+    if(!s.sys) return '';
+    return (s.sys >= DATA.stats.goalSys || s.dia >= DATA.stats.goalDia) ? ' hi' : '';
+  }
+
+  function note(d){
+    var a = [];
+    if(d.condition && d.condition.length) a = a.concat(d.condition);
+    if(d.exercise && d.exercise.length) a = a.concat(d.exercise);
+    if(d.deep != null) a.push('睡眠' + d.deep + '分');
+    return a.join('・');
+  }
+
+  load();
+</script>
+</body>
+</html>
